@@ -1,6 +1,6 @@
 pydub
 matplotlib
-SpeechRecognition==2.1.3
+SpeechRecognition
 whisper
 openai-whisper
 ffmpeg-python  # This includes ffmpeg functionality for Python
