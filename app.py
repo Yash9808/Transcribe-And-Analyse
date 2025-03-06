@@ -1,4 +1,5 @@
 import os
+import time
 import streamlit as st
 import librosa
 import numpy as np
@@ -7,10 +8,10 @@ import seaborn as sns
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import librosa.display
 import speech_recognition as sr
-#import speech_recognition as sr # Import SpeechRecognition for transcription
 from wordcloud import WordCloud
 import torch
 import soundfile as sf  # For reading audio files
+from pydub import AudioSegment  # Ensure it's installed: pip install pydub
 
 # Load T5 model and tokenizer
 tokenizer = T5Tokenizer.from_pretrained("t5-small")
@@ -37,56 +38,64 @@ if uploaded_file:
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    # Convert MP3 to WAV if it's an MP3 file (needed if you are working with .mp3 files)
+    # Convert MP3 to WAV if necessary
     if uploaded_file.type == "audio/mpeg":
-        # Load MP3 file using librosa (no need for ffmpeg or pydub)
-        y, sr = librosa.load(file_path, sr=None)  # Automatically handles MP3 to WAV conversion
-        wav_path = file_path.replace(".mp3", ".wav")
-        sf.write(wav_path, y, sr)  # Save the WAV file using SoundFile
-        file_path = wav_path  # Update to the newly created WAV file
-
-    # Load audio using librosa (works for .wav files)
-    y, sr = librosa.load(file_path, sr=None)
-
-    # Extract MFCCs (Mel Frequency Cepstral Coefficients)
-    mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-
-    # Use SpeechRecognition for transcription
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(file_path) as audio_file:
-        audio_data = recognizer.record(audio_file)
         try:
-            transcribed_text = recognizer.recognize_google(audio_data)  # Google Speech API
-        except sr.UnknownValueError:
-            transcribed_text = "Sorry, I could not understand the audio."
-        except sr.RequestError:
-            transcribed_text = "Sorry, there was an error with the API."
+            audio = AudioSegment.from_mp3(file_path)
+            wav_path = file_path.replace(".mp3", ".wav")
+            audio.export(wav_path, format="wav")  # Convert to WAV
+            file_path = wav_path  # Update path to the WAV file
+        except Exception as e:
+            st.error(f"Error converting MP3 to WAV: {str(e)}")
 
-    # Analyze sentiment
-    sentiment = analyze_sentiment_t5(transcribed_text)
-    sentiment_color = "green" if sentiment == "POSITIVE" else "red"
+    # Ensure file exists before loading
+    time.sleep(1)  # Give time to save file
+    if not os.path.exists(file_path):
+        st.error("Error: File not found! Please re-upload.")
+    else:
+        y, sampling_rate = librosa.load(file_path, sr=None)  # Rename sr to avoid conflicts
 
-    # Display results
-    st.subheader("📊 Sentiment Analysis Result")
-    st.markdown(f"**Overall Sentiment:** <span style='color:{sentiment_color}; font-size:20px;'>{sentiment}</span>", unsafe_allow_html=True)
+        # Extract MFCCs
+        mfccs = librosa.feature.mfcc(y=y, sr=sampling_rate, n_mfcc=13)
 
-    # Display full transcription
-    st.subheader("📝 Full Transcription")
-    st.write(transcribed_text)
+        # Use SpeechRecognition for transcription
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(file_path) as audio_file:
+            audio_data = recognizer.record(audio_file)
+            try:
+                transcribed_text = recognizer.recognize_google(audio_data)
+            except sr.UnknownValueError:
+                transcribed_text = "Sorry, I could not understand the audio."
+            except sr.RequestError:
+                transcribed_text = "Sorry, there was an error with the API."
+            except Exception as e:
+                transcribed_text = f"An unexpected error occurred: {str(e)}"
 
-    # 1️⃣ MFCC Heatmap
-    fig, ax = plt.subplots(figsize=(10, 4))
-    sns.heatmap(mfccs, cmap="coolwarm", xticklabels=False, yticklabels=False)
-    ax.set_title("MFCC Heatmap")
-    st.pyplot(fig)
+        # Analyze sentiment
+        sentiment = analyze_sentiment_t5(transcribed_text)
+        sentiment_color = "green" if sentiment == "POSITIVE" else "red"
 
-    # 2️⃣ Word Cloud
-    wordcloud = WordCloud(width=800, height=400, background_color="white").generate(transcribed_text)
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.imshow(wordcloud, interpolation="bilinear")
-    ax.axis("off")
-    ax.set_title("Word Cloud of Transcription")
-    st.pyplot(fig)
+        # Display results
+        st.subheader("📊 Sentiment Analysis Result")
+        st.markdown(f"**Overall Sentiment:** :{sentiment_color}[{sentiment}]")
 
-    # Clean up temp files
-    os.remove(file_path)
+        # Display full transcription
+        st.subheader("📝 Full Transcription")
+        st.write(transcribed_text)
+
+        # 1️⃣ MFCC Heatmap
+        fig, ax = plt.subplots(figsize=(10, 4))
+        sns.heatmap(mfccs, cmap="coolwarm", xticklabels=False, yticklabels=False)
+        ax.set_title("MFCC Heatmap")
+        st.pyplot(fig)
+
+        # 2️⃣ Word Cloud
+        wordcloud = WordCloud(width=800, height=400, background_color="white").generate(transcribed_text)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.imshow(wordcloud, interpolation="bilinear")
+        ax.axis("off")
+        ax.set_title("Word Cloud of Transcription")
+        st.pyplot(fig)
+
+        # Clean up temp files
+        os.remove(file_path)
