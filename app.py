@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import librosa.display
-import speech_recognition as sr  # Import SpeechRecognition for transcription
+import speech_recognition as sr # Import SpeechRecognition for transcription
 from wordcloud import WordCloud
 import torch
 import soundfile as sf  # For reading audio files
