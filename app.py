@@ -8,11 +8,9 @@ import seaborn as sns
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import librosa.display
 import speech_recognition as sr
-from speech_recognition import AudioFile, Recognizer
 from wordcloud import WordCloud
 import torch
 import soundfile as sf  # For reading audio files
-from pydub import AudioSegment  # Ensure it's installed: pip install pydub
 
 # Load T5 model and tokenizer
 tokenizer = T5Tokenizer.from_pretrained("t5-small")
@@ -42,9 +40,10 @@ if uploaded_file:
     # Convert MP3 to WAV if necessary
     if uploaded_file.type == "audio/mpeg":
         try:
-            audio = AudioSegment.from_mp3(file_path)
+            # Load MP3 directly using librosa (automatically handles MP3 to WAV conversion)
+            y, sampling_rate = librosa.load(file_path, sr=None)  # Librosa handles MP3 to WAV conversion
             wav_path = file_path.replace(".mp3", ".wav")
-            audio.export(wav_path, format="wav")  # Convert to WAV
+            sf.write(wav_path, y, sampling_rate)  # Save as WAV
             file_path = wav_path  # Update path to the WAV file
         except Exception as e:
             st.error(f"Error converting MP3 to WAV: {str(e)}")
@@ -78,7 +77,7 @@ if uploaded_file:
 
         # Display results
         st.subheader("📊 Sentiment Analysis Result")
-        st.markdown(f"**Overall Sentiment:** :{sentiment_color}[{sentiment}]")
+        st.markdown(f"**Overall Sentiment:** <span style='color:{sentiment_color}; font-size:20px;'>{sentiment}</span>", unsafe_allow_html=True)
 
         # Display full transcription
         st.subheader("📝 Full Transcription")
