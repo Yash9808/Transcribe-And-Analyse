@@ -11,7 +11,6 @@ from collections import Counter
 from wordcloud import WordCloud
 import torch
 import soundfile as sf  # For reading audio files
-from pydub import AudioSegment  # For converting MP3 to WAV
 
 # Load T5 model and tokenizer
 tokenizer = T5Tokenizer.from_pretrained("t5-small")
@@ -43,10 +42,10 @@ if uploaded_file:
 
     # Convert MP3 to WAV if it's an MP3 file (needed if you are working with .mp3 files)
     if uploaded_file.type == "audio/mpeg":
-        # Use pydub to convert MP3 to WAV
-        audio = AudioSegment.from_mp3(file_path)
+        # Load MP3 file using librosa (no need for ffmpeg or pydub)
+        y, sr = librosa.load(file_path, sr=None)  # Automatically handles MP3 to WAV conversion
         wav_path = file_path.replace(".mp3", ".wav")
-        audio.export(wav_path, format="wav")
+        sf.write(wav_path, y, sr)  # Save the WAV file using SoundFile
         file_path = wav_path  # Update to the newly created WAV file
 
     # Load audio using librosa (works for .wav files)
