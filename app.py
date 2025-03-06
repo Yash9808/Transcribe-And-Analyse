@@ -8,6 +8,7 @@ import seaborn as sns
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import librosa.display
 import speech_recognition as sr
+from speech_recognition import AudioFile, Recognizer
 from wordcloud import WordCloud
 import torch
 import soundfile as sf  # For reading audio files
