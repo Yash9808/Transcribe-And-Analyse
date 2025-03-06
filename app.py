@@ -1,19 +1,11 @@
-import os
-os.system('apt-get update')
-os.system('apt-get install -y ffmpeg')
-os.system('apt-get install -y ffprobe')
 import streamlit as st
 import librosa
-import numpy as np
-import matplotlib.pyplot as plt
-from pydub import AudioSegment
 from transformers import T5Tokenizer, T5ForConditionalGeneration
+import soundfile as sf  # Use soundfile to read audio
 import os
 import whisper
-from collections import Counter
-import torch
 
-# Load T5 model and tokenizer
+# Load T5 model and tokenizer for sentiment analysis
 tokenizer = T5Tokenizer.from_pretrained("t5-small")
 model = T5ForConditionalGeneration.from_pretrained("t5-small")
 
@@ -41,63 +33,33 @@ if uploaded_file:
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    # Convert MP3 to WAV
-    audio = AudioSegment.from_mp3(file_path)
+    # Convert MP3 to WAV (use soundfile directly instead of pydub)
     wav_path = file_path.replace(".mp3", ".wav")
-    audio.export(wav_path, format="wav")
+    audio = AudioSegment.from_mp3(file_path)  # Remove this line
+    audio.export(wav_path, format="wav")     # Remove this line 
 
-    # Load audio
-    y, sr = librosa.load(wav_path, sr=None)
+    # Load audio using soundfile
+    y, sr = sf.read(wav_path)
 
     # Transcribe with Whisper
     result = whisper_model.transcribe(wav_path)
     transcribed_text = result["text"]
 
-    # Analyze sentiment word by word
-    words = transcribed_text.split()
-    word_sentiments = []
-    for word in words:
-        sentiment = analyze_sentiment_t5(word)
-        word_sentiments.append((word, sentiment))
+    # Analyze sentiment using the T5 model
+    sentiment = analyze_sentiment_t5(transcribed_text)
+    sentiment_color = "green" if sentiment == "POSITIVE" else "red"
 
-    # Plotting the words sentiment
-    positive_words = [word for word, sentiment in word_sentiments if sentiment == "POSITIVE"]
-    negative_words = [word for word, sentiment in word_sentiments if sentiment == "NEGATIVE"]
-    
-    # Scatter plot for word sentiment
-    plt.figure(figsize=(10, 5))
-    positive_scores = [i for i, (word, sentiment) in enumerate(word_sentiments) if sentiment == "POSITIVE"]
-    negative_scores = [i for i, (word, sentiment) in enumerate(word_sentiments) if sentiment == "NEGATIVE"]
+    # Display results
+    st.subheader("📊 Sentiment Analysis Result")
+    st.markdown(f"**Overall Sentiment:** <span style='color:{sentiment_color}; font-size:20px;'>{sentiment}</span>", unsafe_allow_html=True)
 
-    plt.scatter(positive_scores, [1] * len(positive_scores), color='green', label="Positive", s=100)
-    plt.scatter(negative_scores, [1] * len(negative_scores), color='red', label="Negative", s=100)
-
-    plt.yticks([])  # Hide y-axis
-    plt.xlabel("Words")
-    plt.title("Word Sentiment Scatter Plot")
-    plt.legend()
-    st.pyplot(plt)
-
-    # Highlight positive and negative words in transcription
-    highlighted_text = ""
-    for word, sentiment in word_sentiments:
-        if sentiment == "POSITIVE":
-            highlighted_text += f"<span style='color:green'>{word}</span> "
-        else:
-            highlighted_text += f"<span style='color:red'>{word}</span> "
-
-    st.subheader("📝 Transcription with Sentiment Highlighting")
-    st.markdown(highlighted_text, unsafe_allow_html=True)
+    # Display full transcription
+    st.subheader("📝 Full Transcription")
+    st.write(transcribed_text)
 
     # Calculate the length of audio
     audio_length = librosa.get_duration(y=y, sr=sr)
     st.write(f"⏳ Audio Length: {audio_length:.2f} seconds")
-
-    # Calculate and display overall sentiment (for the whole transcription)
-    overall_sentiment = analyze_sentiment_t5(transcribed_text)
-    overall_sentiment_color = "green" if overall_sentiment == "POSITIVE" else "red"
-    st.subheader("📊 Overall Sentiment Analysis Result")
-    st.markdown(f"**Overall Sentiment:** <span style='color:{overall_sentiment_color}; font-size:20px;'>{overall_sentiment}</span>", unsafe_allow_html=True)
 
     # Clean up temp files
     os.remove(wav_path)
