@@ -1,8 +1,4 @@
 import os
-os.system('apt-get update')
-os.system('apt-get install -y ffmpeg')
-os.system('apt-get install -y ffprobe')
-import os
 import streamlit as st
 import librosa
 import numpy as np
@@ -10,8 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import librosa.display
-import whisper
-from collections import Counter
+import speech_recognition as sr  # Import SpeechRecognition for transcription
 from wordcloud import WordCloud
 import torch
 import soundfile as sf  # For reading audio files
@@ -27,9 +22,6 @@ def analyze_sentiment_t5(text):
     output = model.generate(input_ids)
     sentiment = tokenizer.decode(output[0], skip_special_tokens=True)
     return "POSITIVE" if "positive" in sentiment.lower() else "NEGATIVE"
-
-# Load Whisper model
-whisper_model = whisper.load_model("base")
 
 # Streamlit UI
 st.title("🎤 Audio Sentiment & Feature Analysis")
@@ -58,9 +50,16 @@ if uploaded_file:
     # Extract MFCCs (Mel Frequency Cepstral Coefficients)
     mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
 
-    # Transcribe with Whisper
-    result = whisper_model.transcribe(file_path)
-    transcribed_text = result["text"]
+    # Use SpeechRecognition for transcription
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(file_path) as audio_file:
+        audio_data = recognizer.record(audio_file)
+        try:
+            transcribed_text = recognizer.recognize_google(audio_data)  # Google Speech API
+        except sr.UnknownValueError:
+            transcribed_text = "Sorry, I could not understand the audio."
+        except sr.RequestError:
+            transcribed_text = "Sorry, there was an error with the API."
 
     # Analyze sentiment
     sentiment = analyze_sentiment_t5(transcribed_text)
