@@ -12,6 +12,12 @@ from collections import Counter
 from wordcloud import WordCloud
 import torch
 
+# Streamlit UI
+st.title("🎤 Audio Sentiment & Feature Analysis")
+st.write("Upload an MP3 file to analyze its sentiment and audio features.")
+
+uploaded_file = st.file_uploader("Choose an MP3 file", type=["mp3"])
+
 # Function to install ffmpeg (if needed)
 def install_ffmpeg():
     try:
@@ -41,11 +47,7 @@ def analyze_sentiment_t5(text):
 # Load Whisper model
 whisper_model = whisper.load_model("base")
 
-# Streamlit UI
-st.title("🎤 Audio Sentiment & Feature Analysis")
-st.write("Upload an MP3 file to analyze its sentiment and audio features.")
 
-uploaded_file = st.file_uploader("Choose an MP3 file", type=["mp3"])
 
 if uploaded_file:
     file_path = f"temp/{uploaded_file.name}"
