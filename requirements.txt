@@ -1,0 +1,16 @@
+streamlit
+librosa
+transformers
+torch
+pydub
+numpy
+matplotlib
+speechrecognition
+whisper
+openai_whisper
+ffmpeg
+seaborn
+wordcloud
+transformers
+torch
+sentencepiece
