@@ -1,5 +1,6 @@
 pydub
 matplotlib
+SpeechRecognition
 speechrecognition
 whisper
 openai-whisper
