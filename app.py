@@ -1,14 +1,25 @@
-import os
-os.system('apt-get update')
-os.system('apt-get install -y ffmpeg')
-os.system('apt-get install -y ffprobe')
 import streamlit as st
+import os
+import subprocess
+import whisper
 import librosa
 from transformers import T5Tokenizer, T5ForConditionalGeneration
-import soundfile as sf  # Use soundfile to read audio
-import os
-import whisper
-from pydub import AudioSegment  # For converting MP3 to WAV
+import soundfile as sf  # To read audio files
+import shutil
+
+# Function to ensure ffmpeg is installed
+def install_ffmpeg():
+    try:
+        subprocess.run(['ffmpeg', '-version'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        st.write("ffmpeg is installed correctly.")
+    except subprocess.CalledProcessError:
+        st.warning("FFmpeg not found. Installing FFmpeg...")
+        os.system('apt-get update')
+        os.system('apt-get install -y ffmpeg')
+        os.system('apt-get install -y ffprobe')
+
+# Ensure ffmpeg is installed before processing
+install_ffmpeg()
 
 # Load T5 model and tokenizer for sentiment analysis
 tokenizer = T5Tokenizer.from_pretrained("t5-small")
@@ -38,13 +49,18 @@ if uploaded_file:
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    # Convert MP3 to WAV (using pydub)
+    # Convert MP3 to WAV using FFmpeg directly
     wav_path = file_path.replace(".mp3", ".wav")
-    audio = AudioSegment.from_mp3(file_path)  # Convert MP3 to WAV
-    audio.export(wav_path, format="wav")     # Export as WAV file
+    try:
+        convert_mp3_to_wav(file_path, wav_path)
+    except Exception as e:
+        st.error(f"Error converting MP3 to WAV: {e}")
 
-    # Load audio using soundfile
-    y, sr = sf.read(wav_path)
+    try:
+        # Load audio using soundfile
+        y, sr = sf.read(wav_path)
+    except Exception as e:
+        st.error(f"Error loading WAV file: {e}")
 
     # Transcribe with Whisper
     result = whisper_model.transcribe(wav_path)
