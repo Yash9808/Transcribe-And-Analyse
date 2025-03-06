@@ -2,19 +2,14 @@ pydub
 matplotlib
 speechrecognition
 whisper
-openai_whisper
-ffmpeg
+openai-whisper
+ffmpeg-python  # This includes ffmpeg functionality for Python
 seaborn
 wordcloud
 transformers
 sentencepiece
 streamlit>=1.29.0
 librosa
-transformers
 torch==2.2.0
 audioread
 numpy<2
-seaborn
-ffmpeg
-ffprobe
-ffmpeg-python
