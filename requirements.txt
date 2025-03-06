@@ -1,6 +1,6 @@
 pydub
 matplotlib
-SpeechRecognition
+SpeechRecognition==2.1.3
 speechrecognition
 whisper
 openai-whisper
