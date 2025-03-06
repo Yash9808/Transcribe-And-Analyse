@@ -4,6 +4,7 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration
 import soundfile as sf  # Use soundfile to read audio
 import os
 import whisper
+from pydub import AudioSegment  # For converting MP3 to WAV
 
 # Load T5 model and tokenizer for sentiment analysis
 tokenizer = T5Tokenizer.from_pretrained("t5-small")
@@ -33,10 +34,10 @@ if uploaded_file:
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    # Convert MP3 to WAV (use soundfile directly instead of pydub)
+    # Convert MP3 to WAV (using pydub)
     wav_path = file_path.replace(".mp3", ".wav")
-    audio = AudioSegment.from_mp3(file_path)  # Remove this line
-    audio.export(wav_path, format="wav")     # Remove this line 
+    audio = AudioSegment.from_mp3(file_path)  # Convert MP3 to WAV
+    audio.export(wav_path, format="wav")     # Export as WAV file
 
     # Load audio using soundfile
     y, sr = sf.read(wav_path)
