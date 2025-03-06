@@ -1,20 +1,17 @@
 import os
-os.system('apt-get update')
-os.system('apt-get install -y ffmpeg')
-os.system('apt-get install -y ffprobe')
 import streamlit as st
 import librosa
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from transformers import T5Tokenizer, T5ForConditionalGeneration
-import os
 import librosa.display
 import whisper
 from collections import Counter
 from wordcloud import WordCloud
 import torch
 import soundfile as sf  # For reading audio files
+from pydub import AudioSegment  # For converting MP3 to WAV
 
 # Load T5 model and tokenizer
 tokenizer = T5Tokenizer.from_pretrained("t5-small")
@@ -46,13 +43,10 @@ if uploaded_file:
 
     # Convert MP3 to WAV if it's an MP3 file (needed if you are working with .mp3 files)
     if uploaded_file.type == "audio/mpeg":
-        # Use audioread or any other library to read and save as WAV format
-        import audioread
-        with audioread.audio_open(file_path) as f:
-            # Save as WAV using soundfile
-            wav_path = file_path.replace(".mp3", ".wav")
-            with sf.SoundFile(wav_path, 'w', f.samplerate, f.channels) as out_file:
-                out_file.write(f.read_data())
+        # Use pydub to convert MP3 to WAV
+        audio = AudioSegment.from_mp3(file_path)
+        wav_path = file_path.replace(".mp3", ".wav")
+        audio.export(wav_path, format="wav")
         file_path = wav_path  # Update to the newly created WAV file
 
     # Load audio using librosa (works for .wav files)
