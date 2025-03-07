@@ -6,7 +6,7 @@ openai-whisper
 ffmpeg-python  # This includes ffmpeg functionality for Python
 seaborn
 wordcloud
-transformers
+transformers>=4.0.0
 sentencepiece
 streamlit>=1.29.0
 librosa
