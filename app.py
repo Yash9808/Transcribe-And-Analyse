@@ -46,14 +46,22 @@ def extract_agent_question_and_problem(text):
     agent_question = ""
     problem_statement = ""
 
+    # Loop through sentences to find the first question
     for sentence in sentences:
         if "?" in sentence:
             agent_question = sentence.strip()
             break
 
+    # Loop through sentences to find a problem statement based on negative words
     for sentence in sentences:
-        for word in NEGATIVE_WORDS:
-            if word in sentence.lower():
+        if any(word in sentence.lower() for word in NEGATIVE_WORDS):
+            problem_statement = sentence.strip()
+            break
+
+    # If no problem statement found, search for more descriptive words
+    if not problem_statement:
+        for sentence in sentences:
+            if len(sentence.split()) > 5:  # Assume problems are described in slightly longer sentences
                 problem_statement = sentence.strip()
                 break
 
@@ -161,4 +169,3 @@ if uploaded_file:
 
         # Clean up temp files
         os.remove(file_path)
-
