@@ -11,17 +11,10 @@ import speech_recognition as sr
 from wordcloud import WordCloud
 import torch
 import soundfile as sf  # For reading audio files
+from pydub import AudioSegment
+import whisper
+from collections import Counter
 
-#import streamlit as st
-#import librosa
-#import numpy as np
-#import matplotlib.pyplot as plt
-#from pydub import AudioSegment
-#from transformers import T5Tokenizer, T5ForConditionalGeneration
-#import os
-#import whisper
-#from collections import Counter
-#import torch
 
 # Load T5 model and tokenizer
 tokenizer = T5Tokenizer.from_pretrained("t5-small")
