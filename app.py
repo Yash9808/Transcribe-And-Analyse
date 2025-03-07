@@ -128,10 +128,11 @@ if uploaded_file:
         st.subheader("📝 Full Transcription")
         highlighted_text = highlight_words(transcribed_text)
 
-        # Two-column layout for transcription and agent info
-        col1, col2 = st.columns([3, 2])
-        with col1:
-            st.markdown(f"<div style='border: 1px solid #ddd; padding: 10px; border-radius: 5px;'>{highlighted_text}</div>", unsafe_allow_html=True)
+        # Modify to make transcription area wider
+        st.markdown(
+            f"<div style='width: 100%; border: 1px solid #ddd; padding: 20px; border-radius: 5px; font-size: 16px;'>{highlighted_text}</div>", 
+            unsafe_allow_html=True
+        )
 
         # Sentiment Word Plot
         words = transcribed_text.split()
@@ -160,3 +161,4 @@ if uploaded_file:
 
         # Clean up temp files
         os.remove(file_path)
+
