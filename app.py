@@ -4,17 +4,18 @@ import streamlit as st
 import librosa
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import librosa.display
 import speech_recognition as sr
-from wordcloud import WordCloud
-import torch
 import soundfile as sf  # For reading audio files
 
 # Load T5 model and tokenizer
 tokenizer = T5Tokenizer.from_pretrained("t5-small")
 model = T5ForConditionalGeneration.from_pretrained("t5-small")
+
+# Define positive and negative words
+POSITIVE_WORDS = {"good", "great", "excellent", "awesome", "happy", "love", "positive", "satisfied"}
+NEGATIVE_WORDS = {"bad", "terrible", "awful", "sad", "angry", "negative", "hate", "problem"}
 
 def analyze_sentiment_t5(text):
     """Analyzes sentiment using the T5 model."""
@@ -26,21 +27,37 @@ def analyze_sentiment_t5(text):
 
 def highlight_words(text):
     """Highlights positive words in green and negative words in red."""
-    positive_words = {"good", "great", "excellent", "awesome", "happy", "love", "positive"}
-    negative_words = {"bad", "terrible", "awful", "sad", "angry", "negative", "hate"}
-    
     words = text.split()
     highlighted_text = []
 
     for word in words:
-        if word.lower() in positive_words:
+        if word.lower() in POSITIVE_WORDS:
             highlighted_text.append(f"<span style='color:green'>{word}</span>")  # Green for positive words
-        elif word.lower() in negative_words:
+        elif word.lower() in NEGATIVE_WORDS:
             highlighted_text.append(f"<span style='color:red'>{word}</span>")  # Red for negative words
         else:
             highlighted_text.append(word)  # Leave neutral words unchanged
 
     return ' '.join(highlighted_text)
+
+def extract_agent_question_and_problem(text):
+    """Extracts the agent's question and customer's problem from the transcribed text."""
+    sentences = text.split(". ")  # Splitting by sentence
+    agent_question = ""
+    problem_statement = ""
+
+    for sentence in sentences:
+        if "?" in sentence:
+            agent_question = sentence.strip()  # Capture the first question found
+            break
+
+    for sentence in sentences:
+        for word in NEGATIVE_WORDS:
+            if word in sentence.lower():
+                problem_statement = sentence.strip()
+                break
+
+    return agent_question, problem_statement
 
 # Streamlit UI
 st.title("🎤 ✍ Transcribe and Analyze")
@@ -59,7 +76,7 @@ if uploaded_file:
     if uploaded_file.type == "audio/mpeg":
         try:
             # Load MP3 directly using librosa (automatically handles MP3 to WAV conversion)
-            y, sampling_rate = librosa.load(file_path, sr=None)  # Librosa handles MP3 to WAV conversion
+            y, sampling_rate = librosa.load(file_path, sr=None)
             wav_path = file_path.replace(".mp3", ".wav")
             sf.write(wav_path, y, sampling_rate)  # Save as WAV
             file_path = wav_path  # Update path to the WAV file
@@ -67,13 +84,11 @@ if uploaded_file:
             st.error(f"Error converting MP3 to WAV: {str(e)}")
 
     # Ensure file exists before loading
-    time.sleep(1)  # Give time to save file
+    time.sleep(1)
     if not os.path.exists(file_path):
         st.error("Error: File not found! Please re-upload.")
     else:
         y, sampling_rate = librosa.load(file_path, sr=None)
-
-        # Get audio length
         audio_length = librosa.get_duration(y=y, sr=sampling_rate)
 
         # Use SpeechRecognition for transcription
@@ -91,24 +106,46 @@ if uploaded_file:
 
         # Analyze sentiment
         sentiment = analyze_sentiment_t5(transcribed_text)
-        sentiment_score = 1 if sentiment == "POSITIVE" else 0  # Score: 1 for Positive, 0 for Negative
         sentiment_color = "green" if sentiment == "POSITIVE" else "red"
+
+        # Extract Agent Question & Customer Problem
+        agent_question, problem_statement = extract_agent_question_and_problem(transcribed_text)
 
         # Display results
         st.subheader("📊 Sentiment Analysis Result")
         st.markdown(f"**Overall Sentiment:** <span style='color:{sentiment_color}; font-size:20px;'>{sentiment}</span>", unsafe_allow_html=True)
 
-        # Display full transcription with highlights
+        # Display transcription with highlights
         st.subheader("📝 Full Transcription")
         highlighted_text = highlight_words(transcribed_text)
-        st.markdown(highlighted_text, unsafe_allow_html=True)
 
-        # Sentiment Score vs Audio Length Plot
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.bar(["Sentiment Score"], [sentiment_score], color=sentiment_color)
-        ax.set_ylim(0, 1)
-        ax.set_ylabel("Score (0 = Negative, 1 = Positive)")
-        ax.set_title(f"Sentiment Score vs. Audio Length ({audio_length:.2f} sec)")
+        # Create a two-column layout
+        col1, col2 = st.columns([3, 2])
+        with col1:
+            st.markdown(highlighted_text, unsafe_allow_html=True)
+
+        with col2:
+            st.subheader("📌 Agent's Question")
+            st.info(agent_question if agent_question else "No question detected.")
+
+            st.subheader("⚠ Problem Described")
+            st.warning(problem_statement if problem_statement else "No issue detected.")
+
+        # Sentiment Word Plot
+        words = transcribed_text.split()
+        positive_counts = [i for i, word in enumerate(words) if word.lower() in POSITIVE_WORDS]
+        negative_counts = [i for i, word in enumerate(words) if word.lower() in NEGATIVE_WORDS]
+
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.scatter(positive_counts, [1] * len(positive_counts), color="green", label="Positive Words")
+        ax.scatter(negative_counts, [0] * len(negative_counts), color="red", label="Negative Words")
+        ax.plot(positive_counts, [1] * len(positive_counts), color="green", linestyle="dotted", alpha=0.5)
+        ax.plot(negative_counts, [0] * len(negative_counts), color="red", linestyle="dotted", alpha=0.5)
+        ax.set_yticks([0, 1])
+        ax.set_yticklabels(["Negative", "Positive"])
+        ax.set_xlabel("Word Position in Transcription")
+        ax.set_title(f"Positive & Negative Word Distribution Over Audio Length ({audio_length:.2f} sec)")
+        ax.legend()
         st.pyplot(fig)
 
         # Clean up temp files
