@@ -25,21 +25,6 @@ def analyze_sentiment_t5(text):
     sentiment = tokenizer.decode(output[0], skip_special_tokens=True)
     return "POSITIVE" if "positive" in sentiment.lower() else "NEGATIVE"
 
-def highlight_words(text):
-    """Highlights positive words in green and negative words in red."""
-    words = text.split()
-    highlighted_text = []
-
-    for word in words:
-        if word.lower() in POSITIVE_WORDS:
-            highlighted_text.append(f"<span style='color:green'>{word}</span>")
-        elif word.lower() in NEGATIVE_WORDS:
-            highlighted_text.append(f"<span style='color:red'>{word}</span>")
-        else:
-            highlighted_text.append(word)
-
-    return ' '.join(highlighted_text)
-
 def extract_agent_question_and_problem(text):
     """Extracts the agent's question and customer's problem from the transcribed text."""
     sentences = text.split(". ")
@@ -117,21 +102,16 @@ if uploaded_file:
         st.subheader("📊 Sentiment Analysis Result")
         st.markdown(f"**Overall Sentiment:** <span style='color:{sentiment_color}; font-size:20px;'>{sentiment}</span>", unsafe_allow_html=True)
 
-        # Display transcription with highlights
+        # **Display transcription in a bigger text box**
         st.subheader("📝 Full Transcription")
-        highlighted_text = highlight_words(transcribed_text)
+        st.text_area("Transcription:", value=transcribed_text, height=200)  # Enlarged textbox
 
-        # Two-column layout for better display
-        col1, col2 = st.columns([3, 2])
-        with col1:
-            st.markdown(highlighted_text, unsafe_allow_html=True)
+        # **Move the Agent's Question & Problem below transcription**
+        st.subheader("📌 Agent's Question")
+        st.info(agent_question if agent_question else "No question detected.")
 
-        with col2:
-            st.subheader("📌 Agent's Question")
-            st.info(agent_question if agent_question else "No question detected.")
-
-            st.subheader("⚠ Problem Described")
-            st.warning(problem_statement if problem_statement else "No issue detected.")
+        st.subheader("⚠ Problem Described")
+        st.warning(problem_statement if problem_statement else "No issue detected.")
 
         # Sentiment Word Plot
         words = transcribed_text.split()
