@@ -12,6 +12,17 @@ from wordcloud import WordCloud
 import torch
 import soundfile as sf  # For reading audio files
 
+#import streamlit as st
+#import librosa
+#import numpy as np
+#import matplotlib.pyplot as plt
+#from pydub import AudioSegment
+#from transformers import T5Tokenizer, T5ForConditionalGeneration
+#import os
+#import whisper
+#from collections import Counter
+#import torch
+
 # Load T5 model and tokenizer
 tokenizer = T5Tokenizer.from_pretrained("t5-small")
 model = T5ForConditionalGeneration.from_pretrained("t5-small")
@@ -24,11 +35,36 @@ def analyze_sentiment_t5(text):
     sentiment = tokenizer.decode(output[0], skip_special_tokens=True)
     return "POSITIVE" if "positive" in sentiment.lower() else "NEGATIVE"
 
+# Load Whisper model
+whisper_model = whisper.load_model("base")
+
+def highlight_words(text, sentiment="POSITIVE"):
+    """Highlight positive and negative words in transcription."""
+    # Create a list of positive and negative words (simple example, expand as needed)
+    positive_words = {"good", "great", "awesome", "happy", "positive", "love"}
+    negative_words = {"bad", "sad", "angry", "negative", "hate", "awful"}
+    
+    # Split the transcription into words
+    words = text.split()
+    
+    highlighted_text = []
+    
+    for word in words:
+        if word.lower() in positive_words:
+            highlighted_text.append(f"<span style='color:green'>{word}</span>")  # Green for positive
+        elif word.lower() in negative_words:
+            highlighted_text.append(f"<span style='color:red'>{word}</span>")  # Red for negative
+        else:
+            highlighted_text.append(word)  # Leave neutral words unchanged
+    
+    # Join the words back into a string
+    return ' '.join(highlighted_text)
+
 # Streamlit UI
 st.title("🎤 Audio Sentiment & Feature Analysis")
-st.write("Upload an audio file to analyze its sentiment and audio features.")
+st.write("Upload an MP3 file to analyze its sentiment and audio features.")
 
-uploaded_file = st.file_uploader("Choose an Audio File", type=["mp3", "wav"])
+uploaded_file = st.file_uploader("Choose an MP3 file", type=["mp3"])
 
 if uploaded_file:
     file_path = f"temp/{uploaded_file.name}"
@@ -37,65 +73,47 @@ if uploaded_file:
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    # Convert MP3 to WAV if necessary
-    if uploaded_file.type == "audio/mpeg":
-        try:
-            # Load MP3 directly using librosa (automatically handles MP3 to WAV conversion)
-            y, sampling_rate = librosa.load(file_path, sr=None)  # Librosa handles MP3 to WAV conversion
-            wav_path = file_path.replace(".mp3", ".wav")
-            sf.write(wav_path, y, sampling_rate)  # Save as WAV
-            file_path = wav_path  # Update path to the WAV file
-        except Exception as e:
-            st.error(f"Error converting MP3 to WAV: {str(e)}")
+    # Convert MP3 to WAV
+    audio = AudioSegment.from_mp3(file_path)
+    wav_path = file_path.replace(".mp3", ".wav")
+    audio.export(wav_path, format="wav")
 
-    # Ensure file exists before loading
-    time.sleep(1)  # Give time to save file
-    if not os.path.exists(file_path):
-        st.error("Error: File not found! Please re-upload.")
-    else:
-        y, sampling_rate = librosa.load(file_path, sr=None)  # Rename sr to avoid conflicts
+    # Load audio
+    y, sr = librosa.load(wav_path, sr=None)
+    
+    # Get audio length in seconds
+    audio_length = librosa.get_duration(y=y, sr=sr)
 
-        # Extract MFCCs
-        mfccs = librosa.feature.mfcc(y=y, sr=sampling_rate, n_mfcc=13)
+    # Transcribe with Whisper
+    result = whisper_model.transcribe(wav_path)
+    transcribed_text = result["text"]
 
-        # Use SpeechRecognition for transcription
-        recognizer = sr.Recognizer()
-        with sr.AudioFile(file_path) as audio_file:
-            audio_data = recognizer.record(audio_file)
-            try:
-                transcribed_text = recognizer.recognize_google(audio_data)
-            except sr.UnknownValueError:
-                transcribed_text = "Sorry, I could not understand the audio."
-            except sr.RequestError:
-                transcribed_text = "Sorry, there was an error with the API."
-            except Exception as e:
-                transcribed_text = f"An unexpected error occurred: {str(e)}"
+    # Analyze sentiment
+    sentiment = analyze_sentiment_t5(transcribed_text)
+    sentiment_color = "green" if sentiment == "POSITIVE" else "red"
 
-        # Analyze sentiment
-        sentiment = analyze_sentiment_t5(transcribed_text)
-        sentiment_color = "green" if sentiment == "POSITIVE" else "red"
+    # Highlight positive and negative words in transcription
+    highlighted_transcription = highlight_words(transcribed_text, sentiment)
 
-        # Display results
-        st.subheader("📊 Sentiment Analysis Result")
-        st.markdown(f"**Overall Sentiment:** <span style='color:{sentiment_color}; font-size:20px;'>{sentiment}</span>", unsafe_allow_html=True)
+    # Display results
+    st.subheader("📊 Sentiment Analysis Result")
+    st.markdown(f"**Overall Sentiment:** <span style='color:{sentiment_color}; font-size:20px;'>{sentiment}</span>", unsafe_allow_html=True)
+    
+    # Display full transcription with highlighted words
+    st.subheader("📝 Full Transcription")
+    st.markdown(highlighted_transcription, unsafe_allow_html=True)
 
-        # Display full transcription
-        st.subheader("📝 Full Transcription")
-        st.write(transcribed_text)
+    # Plot sentiment score vs. audio length
+    fig, ax = plt.subplots(figsize=(10, 5))
+    sentiment_score = 1 if sentiment == "POSITIVE" else 0  # Simplified sentiment score: 1 for POSITIVE, 0 for NEGATIVE
+    ax.barh(["Sentiment"], [sentiment_score], color=sentiment_color)
+    ax.set_xlim(0, 1)
+    ax.set_xlabel("Sentiment Score")
+    ax.set_title(f"Sentiment Score vs. Audio Length (Duration: {audio_length:.2f} seconds)")
+    st.pyplot(fig)
 
-        # 1️⃣ MFCC Heatmap
-        fig, ax = plt.subplots(figsize=(10, 4))
-        sns.heatmap(mfccs, cmap="coolwarm", xticklabels=False, yticklabels=False)
-        ax.set_title("MFCC Heatmap")
-        st.pyplot(fig)
+    # Clean up temp files
+    os.remove(wav_path)
+    os.remove(file_path)
 
-        # 2️⃣ Word Cloud
-        wordcloud = WordCloud(width=800, height=400, background_color="white").generate(transcribed_text)
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.imshow(wordcloud, interpolation="bilinear")
-        ax.axis("off")
-        ax.set_title("Word Cloud of Transcription")
-        st.pyplot(fig)
 
-        # Clean up temp files
-        os.remove(file_path)
