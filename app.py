@@ -15,7 +15,7 @@ model = T5ForConditionalGeneration.from_pretrained("t5-small")
 
 # Define positive and negative words
 POSITIVE_WORDS = {"good", "great", "excellent", "awesome", "happy", "love", "positive", "satisfied"}
-NEGATIVE_WORDS = {"bad", "terrible", "awful", "sad", "angry", "negative", "hate", "problem"}
+NEGATIVE_WORDS = {"bad", "terrible", "awful", "sad", "angry", "negative", "hate", "problem", "not good service", "Rubbish", "frustrating"}
 
 def analyze_sentiment_t5(text):
     """Analyzes sentiment using the T5 model."""
@@ -128,17 +128,10 @@ if uploaded_file:
         st.subheader("📝 Full Transcription")
         highlighted_text = highlight_words(transcribed_text)
 
-        # Two-column layout
+        # Two-column layout for transcription and agent info
         col1, col2 = st.columns([3, 2])
         with col1:
             st.markdown(f"<div style='border: 1px solid #ddd; padding: 10px; border-radius: 5px;'>{highlighted_text}</div>", unsafe_allow_html=True)
-
-        with col2:
-            st.subheader("📌 Agent's Question")
-            st.info(agent_question if agent_question else "No question detected.")
-
-            st.subheader("⚠ Problem Described")
-            st.warning(problem_statement if problem_statement else "No issue detected.")
 
         # Sentiment Word Plot
         words = transcribed_text.split()
@@ -157,6 +150,13 @@ if uploaded_file:
         ax.set_title(f"Positive & Negative Word Distribution Over Audio Length ({audio_length:.2f} sec)")
         ax.legend()
         st.pyplot(fig)
+
+        # Move the "Agent's Question" and "Problem Described" sections here
+        st.subheader("📌 Agent's Question")
+        st.info(agent_question if agent_question else "No question detected.")
+
+        st.subheader("⚠ Problem Described")
+        st.warning(problem_statement if problem_statement else "No issue detected.")
 
         # Clean up temp files
         os.remove(file_path)
