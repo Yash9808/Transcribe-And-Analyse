@@ -7,23 +7,23 @@ import matplotlib.pyplot as plt
 import librosa.display
 import speech_recognition as sr
 import soundfile as sf  # For audio file handling
-from transformers import T5Tokenizer, T5ForConditionalGeneration
 
-# Load T5 model and tokenizer
-tokenizer = T5Tokenizer.from_pretrained("t5-small")
-model = T5ForConditionalGeneration.from_pretrained("t5-small")
-
-# Define positive and negative words
+# Define positive and negative words for sentiment analysis
 POSITIVE_WORDS = {"good", "great", "excellent", "awesome", "happy", "love", "positive", "satisfied"}
 NEGATIVE_WORDS = {"bad", "terrible", "awful", "sad", "angry", "negative", "hate", "problem", "not good service", "Rubbish", "frustrating"}
 
-def analyze_sentiment_t5(text):
-    """Analyzes sentiment using the T5 model."""
-    input_text = f"sst2 sentence: {text}"
-    input_ids = tokenizer.encode(input_text, return_tensors="pt")
-    output = model.generate(input_ids)
-    sentiment = tokenizer.decode(output[0], skip_special_tokens=True)
-    return "POSITIVE" if "positive" in sentiment.lower() else "NEGATIVE"
+def analyze_sentiment(text):
+    """Analyzes sentiment by identifying positive and negative words."""
+    words = text.split()
+    positive_count = sum(1 for word in words if word.lower() in POSITIVE_WORDS)
+    negative_count = sum(1 for word in words if word.lower() in NEGATIVE_WORDS)
+    
+    if positive_count > negative_count:
+        return "POSITIVE"
+    elif negative_count > positive_count:
+        return "NEGATIVE"
+    else:
+        return "NEUTRAL"
 
 def highlight_words(text):
     """Highlights positive words in green and negative words in red."""
@@ -114,7 +114,7 @@ if uploaded_file:
         print("Transcribed Text:", transcribed_text)
 
         # Analyze sentiment
-        sentiment = analyze_sentiment_t5(transcribed_text)
+        sentiment = analyze_sentiment(transcribed_text)
         sentiment_color = "green" if sentiment == "POSITIVE" else "red"
 
         # Extract Agent Question & Customer Problem
