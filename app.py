@@ -4,10 +4,10 @@ import streamlit as st
 import librosa
 import numpy as np
 import matplotlib.pyplot as plt
-from transformers import T5Tokenizer, T5ForConditionalGeneration
 import librosa.display
 import speech_recognition as sr
-import soundfile as sf  # For reading audio files
+import soundfile as sf  # For audio file handling
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 
 # Load T5 model and tokenizer
 tokenizer = T5Tokenizer.from_pretrained("t5-small")
@@ -59,6 +59,20 @@ def extract_agent_question_and_problem(text):
 
     return agent_question, problem_statement
 
+def transcribe_audio(file_path):
+    """Transcribes audio using SpeechRecognition."""
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(file_path) as audio_file:
+        audio_data = recognizer.record(audio_file)
+        try:
+            return recognizer.recognize_google(audio_data)
+        except sr.UnknownValueError:
+            return "Sorry, I could not understand the audio."
+        except sr.RequestError:
+            return "Sorry, there was an error with the API."
+        except Exception as e:
+            return f"An unexpected error occurred: {str(e)}"
+
 # Streamlit UI
 st.title("🎤 ✍ Transcribe and Analyze")
 st.write("Upload an audio file to analyze its sentiment and audio features.")
@@ -66,9 +80,11 @@ st.write("Upload an audio file to analyze its sentiment and audio features.")
 uploaded_file = st.file_uploader("Choose an Audio File", type=["mp3", "wav"])
 
 if uploaded_file:
-    file_path = f"temp/{uploaded_file.name}"
-    os.makedirs("temp", exist_ok=True)
+    temp_dir = "temp"
+    os.makedirs(temp_dir, exist_ok=True)
+    file_path = os.path.join(temp_dir, uploaded_file.name)
 
+    # Save uploaded file
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
@@ -78,30 +94,21 @@ if uploaded_file:
             y, sampling_rate = librosa.load(file_path, sr=None)
             wav_path = file_path.replace(".mp3", ".wav")
             sf.write(wav_path, y, sampling_rate)
-            file_path = wav_path
+            file_path = wav_path  # Use converted WAV file
         except Exception as e:
             st.error(f"Error converting MP3 to WAV: {str(e)}")
 
-    # Ensure file exists before loading
+    # Ensure file exists
     time.sleep(1)
     if not os.path.exists(file_path):
         st.error("Error: File not found! Please re-upload.")
     else:
+        # Load audio and get duration
         y, sampling_rate = librosa.load(file_path, sr=None)
         audio_length = librosa.get_duration(y=y, sr=sampling_rate)
 
-        # SpeechRecognition for transcription
-        recognizer = sr.Recognizer()
-        with sr.AudioFile(file_path) as audio_file:
-            audio_data = recognizer.record(audio_file)
-            try:
-                transcribed_text = recognizer.recognize_google(audio_data)
-            except sr.UnknownValueError:
-                transcribed_text = "Sorry, I could not understand the audio."
-            except sr.RequestError:
-                transcribed_text = "Sorry, there was an error with the API."
-            except Exception as e:
-                transcribed_text = f"An unexpected error occurred: {str(e)}"
+        # Transcribe the audio
+        transcribed_text = transcribe_audio(file_path)
 
         # Debugging output
         print("Transcribed Text:", transcribed_text)
@@ -121,10 +128,10 @@ if uploaded_file:
         st.subheader("📝 Full Transcription")
         highlighted_text = highlight_words(transcribed_text)
 
-        # Two-column layout for better display
+        # Two-column layout
         col1, col2 = st.columns([3, 2])
         with col1:
-            st.markdown(highlighted_text, unsafe_allow_html=True)
+            st.markdown(f"<div style='border: 1px solid #ddd; padding: 10px; border-radius: 5px;'>{highlighted_text}</div>", unsafe_allow_html=True)
 
         with col2:
             st.subheader("📌 Agent's Question")
