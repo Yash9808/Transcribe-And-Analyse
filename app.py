@@ -19,7 +19,7 @@ NEGATIVE_WORDS = {"bad", "terrible", "awful", "sad", "angry", "negative", "hate"
 
 def analyze_sentiment_t5(text):
     """Analyzes sentiment using the T5 model."""
-    input_text = f"sst2 sentence: {text}"  # Formatting input for T5 model
+    input_text = f"sst2 sentence: {text}"
     input_ids = tokenizer.encode(input_text, return_tensors="pt")
     output = model.generate(input_ids)
     sentiment = tokenizer.decode(output[0], skip_special_tokens=True)
@@ -32,23 +32,23 @@ def highlight_words(text):
 
     for word in words:
         if word.lower() in POSITIVE_WORDS:
-            highlighted_text.append(f"<span style='color:green'>{word}</span>")  # Green for positive words
+            highlighted_text.append(f"<span style='color:green'>{word}</span>")
         elif word.lower() in NEGATIVE_WORDS:
-            highlighted_text.append(f"<span style='color:red'>{word}</span>")  # Red for negative words
+            highlighted_text.append(f"<span style='color:red'>{word}</span>")
         else:
-            highlighted_text.append(word)  # Leave neutral words unchanged
+            highlighted_text.append(word)
 
     return ' '.join(highlighted_text)
 
 def extract_agent_question_and_problem(text):
     """Extracts the agent's question and customer's problem from the transcribed text."""
-    sentences = text.split(". ")  # Splitting by sentence
+    sentences = text.split(". ")
     agent_question = ""
     problem_statement = ""
 
     for sentence in sentences:
         if "?" in sentence:
-            agent_question = sentence.strip()  # Capture the first question found
+            agent_question = sentence.strip()
             break
 
     for sentence in sentences:
@@ -75,11 +75,10 @@ if uploaded_file:
     # Convert MP3 to WAV if necessary
     if uploaded_file.type == "audio/mpeg":
         try:
-            # Load MP3 directly using librosa (automatically handles MP3 to WAV conversion)
             y, sampling_rate = librosa.load(file_path, sr=None)
             wav_path = file_path.replace(".mp3", ".wav")
-            sf.write(wav_path, y, sampling_rate)  # Save as WAV
-            file_path = wav_path  # Update path to the WAV file
+            sf.write(wav_path, y, sampling_rate)
+            file_path = wav_path
         except Exception as e:
             st.error(f"Error converting MP3 to WAV: {str(e)}")
 
@@ -91,7 +90,7 @@ if uploaded_file:
         y, sampling_rate = librosa.load(file_path, sr=None)
         audio_length = librosa.get_duration(y=y, sr=sampling_rate)
 
-        # Use SpeechRecognition for transcription
+        # SpeechRecognition for transcription
         recognizer = sr.Recognizer()
         with sr.AudioFile(file_path) as audio_file:
             audio_data = recognizer.record(audio_file)
@@ -103,6 +102,9 @@ if uploaded_file:
                 transcribed_text = "Sorry, there was an error with the API."
             except Exception as e:
                 transcribed_text = f"An unexpected error occurred: {str(e)}"
+
+        # Debugging output
+        print("Transcribed Text:", transcribed_text)
 
         # Analyze sentiment
         sentiment = analyze_sentiment_t5(transcribed_text)
@@ -119,7 +121,7 @@ if uploaded_file:
         st.subheader("📝 Full Transcription")
         highlighted_text = highlight_words(transcribed_text)
 
-        # Create a two-column layout
+        # Two-column layout for better display
         col1, col2 = st.columns([3, 2])
         with col1:
             st.markdown(highlighted_text, unsafe_allow_html=True)
@@ -133,8 +135,9 @@ if uploaded_file:
 
         # Sentiment Word Plot
         words = transcribed_text.split()
-        positive_counts = [i for i, word in enumerate(words) if word.lower() in POSITIVE_WORDS]
-        negative_counts = [i for i, word in enumerate(words) if word.lower() in NEGATIVE_WORDS]
+        word_positions = np.linspace(0, audio_length, len(words))  # Map words to time
+        positive_counts = [word_positions[i] for i, word in enumerate(words) if word.lower() in POSITIVE_WORDS]
+        negative_counts = [word_positions[i] for i, word in enumerate(words) if word.lower() in NEGATIVE_WORDS]
 
         fig, ax = plt.subplots(figsize=(8, 4))
         ax.scatter(positive_counts, [1] * len(positive_counts), color="green", label="Positive Words")
@@ -143,7 +146,7 @@ if uploaded_file:
         ax.plot(negative_counts, [0] * len(negative_counts), color="red", linestyle="dotted", alpha=0.5)
         ax.set_yticks([0, 1])
         ax.set_yticklabels(["Negative", "Positive"])
-        ax.set_xlabel("Word Position in Transcription")
+        ax.set_xlabel("Time in Seconds")
         ax.set_title(f"Positive & Negative Word Distribution Over Audio Length ({audio_length:.2f} sec)")
         ax.legend()
         st.pyplot(fig)
