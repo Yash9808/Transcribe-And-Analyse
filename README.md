@@ -56,3 +56,4 @@ App link: https://yp2opqdw5du4x4cevfryet.streamlit.app/
 
 Happy Transcribing! 🎙️📊
 
+![_- visual selection](https://github.com/user-attachments/assets/b770c2b5-87ed-4288-a56c-9caaba86d09a)
